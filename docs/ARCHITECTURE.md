@@ -91,7 +91,7 @@ The schema is fixed and owned by this repo, so the Glue tables are declared in C
 
 ### ADR-005: Thresholds use only earlier years
 
-`rain_daily` compares each day with the station's 99th and 99.9th percentile of rainy days and its previous maximum, computed **only from years before that day's year**. Using all years would leak the future: a record year would raise its own threshold and partly hide itself. It also means `python -m barsha bulletin --as-of 2024-09-28` shows exactly what a live run that morning would have shown.
+`rain_daily` compares each day with the station's 99th and 99.9th percentile of rainy days, computed **only from years before that day's year**, and with its previous maximum, the wettest believable day **before that day** (earlier days of the same year included). Using all years for the percentiles would leak the future: a record year would raise its own threshold and partly hide itself. The maximum needs the same-year days, or a second, smaller record in one year would also be announced as the wettest day on record. It also means `python -m barsha bulletin --as-of 2024-09-28` shows exactly what a live run that morning would have shown.
 
 A threshold needs about 300 earlier rainy days to mean anything; until then it is null and only the absolute categories apply.
 
