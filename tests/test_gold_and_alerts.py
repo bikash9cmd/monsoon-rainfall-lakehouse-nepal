@@ -46,6 +46,43 @@ def test_thresholds_use_only_earlier_years(mirror, lake_dir, history):
     assert day["is_station_record"]
 
 
+def test_second_smaller_record_in_the_same_year_is_not_a_record(mirror, lake_dir, history):
+    # 203 mm on 1 July, then 152 mm on 1 August: only the first beats everything before it.
+    # A neighbour gets heavy rain both days, so neither is held as suspect.
+    big, smaller = date(2020, 7, 1), date(2020, 8, 1)
+    mirror.put(2020, KTM, year_rows(KTM, 2020, {big: 8.0, smaller: 6.0}))
+    mirror.put(2020, OKH, year_rows(OKH, 2020, {big: 3.0, smaller: 3.0}))
+    silver = _load(mirror, lake_dir, history + [2020])
+    frames = build_gold_frames(silver, smaller)
+    rain = frames["rain_daily"]
+
+    first = rain[(rain.station_id == KTM) & (rain.obs_date == pd.Timestamp(big))].iloc[0]
+    second = rain[(rain.station_id == KTM) & (rain.obs_date == pd.Timestamp(smaller))].iloc[0]
+    assert first["is_station_record"] and first["prior_max_mm"] == pytest.approx(10.2, abs=0.1)
+    assert not second["is_station_record"]
+    assert second["prior_max_mm"] == pytest.approx(203.2)
+    assert second["p99_wet_mm"] == first["p99_wet_mm"]  # percentiles still use earlier years only
+
+    b = build_bulletin(rain, frames["station_health"], smaller)
+    ktm = next(a for a in b["alerts"] if a["station_id"] == KTM)
+    assert "152 mm" in ktm["en"] and "Wettest day" not in ktm["en"]
+    assert "रेकर्डमै" not in ktm["ne"]
+
+
+def test_same_year_suspect_spike_does_not_hide_a_later_record(mirror, lake_dir, history):
+    # 406 mm in April with dry neighbours is held as suspect; the corroborated 203 mm in July
+    # is still the wettest believable day this station has had.
+    mirror.put(2020, KTM, year_rows(KTM, 2020, {date(2020, 4, 19): 16.0, date(2020, 7, 1): 8.0}))
+    mirror.put(2020, OKH, year_rows(OKH, 2020, {date(2020, 7, 1): 3.0}))
+    silver = _load(mirror, lake_dir, history + [2020])
+    rain = build_gold_frames(silver, date(2020, 12, 31))["rain_daily"]
+
+    spike = rain[(rain.station_id == KTM) & (rain.obs_date == "2020-04-19")].iloc[0]
+    july = rain[(rain.station_id == KTM) & (rain.obs_date == "2020-07-01")].iloc[0]
+    assert spike["alert_level"] == "suspect"
+    assert july["is_station_record"] and july["prior_max_mm"] == pytest.approx(10.2, abs=0.1)
+
+
 def test_isolated_spike_is_held_as_suspect_but_corroborated_one_is_not(mirror, lake_dir, history):
     # Kathmandu: a 400 mm day with dry neighbours. Okhaldhunga (~130 km away) gets the same
     # in a later year, but Kathmandu has heavy rain the day before.

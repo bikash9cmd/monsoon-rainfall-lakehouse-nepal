@@ -13,7 +13,7 @@ $ python -m barsha bulletin --as-of 2024-09-28
       सबैभन्दा धेरै (पहिलेको अधिकतम १९१ मिमि)। ३ दिनमा २९१ मिमि: पहिरो र बाढीको जोखिम उच्च छ।
 [RED] Barsha rain report (Dhankuta): 173 mm on 2024-09-28 ... Wettest day in this station's record.
 [RED] Barsha rain report (Biratnagar): 170 mm on 2024-09-27 ... Wettest day in this station's record.
-[RED] Barsha rain report (Okhaldhunga): 110 mm on 2024-09-28 ... Wettest day in this station's record.
+[RED] Barsha rain report (Okhaldhunga): 110 mm on 2024-09-28 ... Above the level this station reaches on only 1 in 100 rainy days.
 [ORANGE] Barsha rain report (Bhairahawa): 194 mm on 2024-09-28 ...
 ```
 *(Real output, replaying the morning after the September 2024 floods that hit the Kathmandu Valley. Thresholds use only the years before 2024, so this is what a live run would have said.)*
@@ -37,7 +37,7 @@ Barsha is the data engineering that makes this record safe to use: it ingests in
 | Days with a complete 24-hour rainfall reading | 52,538 (78%) |
 | Days whose `0.00` is really "not reported" | 4,599, kept as missing instead of dry |
 | Station-monsoons complete enough (90%) to publish a total | **60 of 337**; the rest say why they're withheld |
-| Red alert days (2014-2025) | 37, including station records on 28 Sep 2024 (Kathmandu, Dhankuta, Okhaldhunga, Biratnagar), 18-19 Oct 2021 (Dadeldhura, Dipayal, Dhangadhi) and 14-15 Aug 2014 (Surkhet, 427 mm) |
+| Red alert days (2014-2025) | 37, including station records on 27-28 Sep 2024 (Kathmandu, Dhankuta, Biratnagar), 18-19 Oct 2021 (Dadeldhura, Dipayal, Dhangadhi) and 14-15 Aug 2014 (Surkhet, 427 mm) |
 | Values held back as suspect | 1: Taplejung, 404 mm on 19 Apr 2018, with no neighbour above 17 mm |
 | Source freshness today | **415 days stale**: operators are paged, the public isn't told it's dry |
 
@@ -113,7 +113,7 @@ make backfill        # every year since 1976 into ./lake (~1 minute)
 make replay          # the bulletin for 28 September 2024
 make daily           # what the scheduler runs: incremental, usually copies nothing
 python -m barsha query "select * from monsoon_season where station_id = '44454099999' order by year desc limit 10"
-make test            # 33 tests, no network needed
+make test            # 35 tests, no network needed
 ```
 
 Deploying to AWS: [infra/README.md](infra/README.md). Example Athena queries: [sql/athena/](sql/athena/).
@@ -135,7 +135,7 @@ barsha/
 infra/             SAM template (S3, Lambda, Step Functions, Glue, Athena, SNS, alarms, budget)
 sql/athena/        analyst queries
 scripts/           cost model, charts
-tests/             33 tests, including the Lambdas against mocked S3 and SNS
+tests/             35 tests, including the Lambdas against mocked S3 and SNS
 docs/              data, architecture, alternatives, failure modes, cost, bugs
 ```
 

@@ -1,6 +1,7 @@
 -- One row per station-day with rainfall, its category, and how it compares with that
--- station's own history. Thresholds use only years before the day's year, so a replay of
--- any past day sees exactly what a live run would have seen then.
+-- station's own history. Percentile thresholds use only years before the day's year and the
+-- previous maximum only days before it, so a replay of any past day sees exactly what a live
+-- run would have seen then.
 with days as (
     select
         station_id, obs_date::date as obs_date, year(obs_date) as yr,
@@ -88,6 +89,18 @@ flagged as (
         s.far_above_station and coalesce(c.neighbour_max_mm, 0) < 64.5 as is_suspect
     from screened s
     left join corroborated c using (station_id, obs_date)
+),
+-- The previous maximum also counts believable days earlier in the same year. They are already
+-- in the past, so this leaks nothing; without them, a second, smaller "record" in one year
+-- would be announced as the wettest day on record. Percentiles stay on earlier years only.
+recorded as (
+    select * replace (
+        greatest(prior_max_mm, max(case when not is_suspect then prcp_mm end) over (
+            partition by station_id, year order by obs_date
+            rows between unbounded preceding and 1 preceding
+        )) as prior_max_mm
+    )
+    from flagged
 )
 select * exclude (far_above_station),
     coalesce(prcp_mm > prior_max_mm, false) and prior_wet_days >= 300 and not is_suspect as is_station_record,
@@ -102,5 +115,5 @@ select * exclude (far_above_station),
         when prcp_mm >= 115.6 or (prcp_mm >= $min_relative_mm and prcp_mm >= p99_wet_mm) then 'orange'
         when prcp_mm >= 64.5 then 'yellow'
     end as alert_level
-from flagged
+from recorded
 order by station_id, obs_date
